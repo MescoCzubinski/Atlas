@@ -76,7 +76,7 @@ export function GridPanel({ className }: { className?: string }) {
       aria-label="Przykładowe miejsca"
       data-idle="on"
       className={cn(
-        "relative flex flex-col items-center justify-center overflow-hidden border-t bg-grid px-[var(--grid-size)] pt-[var(--grid-size)] pb-[var(--grid-size)] lg:border-t-0 lg:border-l",
+        "relative flex flex-col items-center justify-center overflow-hidden border-t bg-grid [--grid-size:min(40vw/15,100vh/25)] px-[var(--grid-size)] pt-[var(--grid-size)] pb-[var(--grid-size)] lg:border-t-0 lg:border-l",
         className,
       )}
     >
