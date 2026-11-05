@@ -24,7 +24,6 @@ const PLAN = {
   start: START,
   durationMinutes: 90,
   tags: ["gothic"],
-  startTime: "2026-10-12T08:00:00Z",
 };
 
 describeWithDatabase("places slice", () => {
@@ -67,17 +66,13 @@ describeWithDatabase("places slice", () => {
     await db?.drop();
   });
 
-  it("searches places by name with visit time and entry flag", async () => {
+  it("searches places by name", async () => {
     const res = await request(app.getHttpServer())
       .get("/api/places")
       .query({ query: "muzeum" })
       .expect(200);
     expect(res.body).toEqual([
-      expect.objectContaining({
-        name: "Muzeum Narodowe",
-        visitMinutes: 45,
-        enterable: true,
-      }),
+      expect.objectContaining({ name: "Muzeum Narodowe" }),
     ]);
   });
 

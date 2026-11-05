@@ -31,7 +31,7 @@ export function additionCost(route: Itinerary, stop: RouteStop) {
       index = i;
     }
   }
-  return { index, minutes: Math.round(walk + stop.visitMinutes) };
+  return { index, minutes: Math.round(walk) };
 }
 
 function removalSavings(route: Itinerary, i: number): number {
@@ -41,7 +41,7 @@ function removalSavings(route: Itinerary, i: number): number {
   const stop = route.stops[i] as RouteStop;
   const walk =
     walkMinutes(prev, stop) + walkMinutes(stop, next) - walkMinutes(prev, next);
-  return Math.round(walk + stop.visitMinutes);
+  return Math.round(walk);
 }
 
 export type Removal = { ids: string[]; savedMinutes: number };

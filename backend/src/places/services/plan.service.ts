@@ -1,11 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import type { RoutedPath } from "../../common/bus/contracts";
 import { EventBus } from "../../common/bus/event-bus";
 import { NoMatchingPlacesException } from "../exceptions/no-matching-places.exception";
 import { TimeBudgetTooSmallException } from "../exceptions/time-budget-too-small.exception";
 import type { LatLng } from "./geo";
-import { isOpenAt } from "./opening-hours";
 import { planOrienteering, type PlannerOptions } from "./orienteering";
 import { PlaceService } from "./place.service";
 import type {
@@ -19,7 +17,6 @@ import type {
 
 export type BuiltRoute = PlannedRoute & { path: RoutedPath };
 
-const DEFAULT_TIME_ZONE = "Europe/Warsaw";
 const MAX_STOPS = 60; // a safety bound; the time budget decides how many stops fit
 const MAX_EXTRAS = 10;
 const MAX_REFINEMENTS = 3;
@@ -53,15 +50,11 @@ export function walkMinutes(
 @Injectable()
 export class PlanService {
   private readonly log = new Logger(PlanService.name);
-  private readonly timeZone: string;
 
   constructor(
     private readonly bus: EventBus,
     private readonly places: PlaceService,
-    config: ConfigService,
-  ) {
-    this.timeZone = config.get<string>("REGION_TIMEZONE") ?? DEFAULT_TIME_ZONE;
-  }
+  ) {}
 
   async build(query: RouteQuery): Promise<BuiltRoute> {
     await this.bus.request("location.ensure-inside", {
@@ -89,11 +82,9 @@ export class PlanService {
     const options: PlannerOptions = {
       start: query.start,
       end: query.end,
-      startAt: query.startTime ?? new Date(),
       budgetMinutes: query.durationMinutes,
       maxStops: MAX_STOPS,
       walkMinutes: (a, b) => walkMinutes(a, b),
-      isOpen: (c, at) => isOpenAt(c.openingHours, at, this.timeZone),
     };
     let plan = planOrienteering(candidates, options);
     if (plan.stops.length === 0) throw new NoMatchingPlacesException();
@@ -104,8 +95,7 @@ export class PlanService {
         points: [query.start, ...order.map((c) => c.point), query.end],
       });
       const walk = path.durationSeconds / SECONDS_PER_MINUTE;
-      const visit = order.reduce((sum, c) => sum + c.dwellMinutes, 0);
-      if (walk + visit <= query.durationMinutes || order.length <= 1) break;
+      if (walk <= query.durationMinutes || order.length <= 1) break;
       this.log.debug(
         `real walk ${Math.round(walk)} min overshoots, dropping a stop`,
       );
@@ -118,7 +108,7 @@ export class PlanService {
     }
     const chosen = new Set(plan.stops.map((s) => s.candidate));
     return {
-      stops: plan.stops.map((s) => this.toPlannedStop(s.candidate, s.arriveAt)),
+      stops: plan.stops.map((s) => this.toPlannedStop(s.candidate)),
       extras: candidates
         .filter((c) => !chosen.has(c))
         .slice(0, MAX_EXTRAS)
@@ -155,21 +145,18 @@ export class PlanService {
     }
     if (relevance === 0) return null;
 
-
     const notable = BASE_SIGNIFICANCE + p.significance / 200;
     return {
       place: p,
       point: { lat: p.latitude, lng: p.longitude },
       value: relevance * notable,
-      dwellMinutes: p.visitMinutes,
-      openingHours: p.openingHours,
     };
   }
 
   private detourFits(c: RouteCandidate, query: RouteQuery): boolean {
     const there = walkMinutes(query.start, c.point);
     const back = walkMinutes(c.point, query.end);
-    return there + c.dwellMinutes + back <= query.durationMinutes;
+    return there + back <= query.durationMinutes;
   }
 
   private reachableBox(query: RouteQuery) {
@@ -190,7 +177,7 @@ export class PlanService {
     };
   }
 
-  private toPlannedStop(c: RouteCandidate, arriveAt?: Date): PlannedStop {
+  private toPlannedStop(c: RouteCandidate): PlannedStop {
     const p = c.place;
     return {
       id: p.id,
@@ -198,20 +185,16 @@ export class PlanService {
       description: p.description ?? "",
       lat: p.latitude,
       lng: p.longitude,
-      visitMinutes: c.dwellMinutes,
-      enterable: p.enterable,
-      arriveAt: arriveAt?.toISOString(),
       imageUrl: p.mainImageUrl,
     };
   }
 
   private weakest(plan: Plan): RouteCandidate {
-    return plan.stops.reduce((worst, s) => {
-      const cost = s.walkMinutes + s.candidate.dwellMinutes;
-      const worstCost = worst.walkMinutes + worst.candidate.dwellMinutes;
-      return s.candidate.value / cost < worst.candidate.value / worstCost
+    return plan.stops.reduce((worst, s) =>
+      s.candidate.value / s.walkMinutes <
+      worst.candidate.value / worst.walkMinutes
         ? s
-        : worst;
-    }).candidate;
+        : worst,
+    ).candidate;
   }
 }

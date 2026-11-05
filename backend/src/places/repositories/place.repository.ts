@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import type { CandidateQuery, TagPercents } from "../services/types";
-import type { PlaceFacts } from "../entities/place-facts";
 import { Place } from "../entities/place.entity";
 
 export type PlaceRow = {
@@ -13,7 +12,6 @@ export type PlaceRow = {
   description: string | null;
   mainImageUrl: string | null;
   significance: number;
-  facts: PlaceFacts;
   tags: TagPercents;
 };
 
@@ -22,7 +20,7 @@ type RawRow = Omit<PlaceRow, "mainImageUrl"> & {
 };
 
 const SELECT_WITH_TAGS = `
-  SELECT p.id, p.name, p.latitude, p.longitude, p.description, p.main_image_url, p.significance, p.facts,
+  SELECT p.id, p.name, p.latitude, p.longitude, p.description, p.main_image_url, p.significance,
          COALESCE(jsonb_object_agg(t.tag, t.percent) FILTER (WHERE t.tag IS NOT NULL), '{}'::jsonb) AS tags
     FROM places p
     LEFT JOIN place_tags t ON t.place_id = p.id`;

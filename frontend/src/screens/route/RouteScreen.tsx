@@ -255,7 +255,6 @@ function PlannedRoute({ plan, search }: { plan: RoutePlan; search: string }) {
           onMove={editor.move}
           onRemove={editor.remove}
           onAdd={editor.add}
-          onSetVisitMinutes={editor.setVisitMinutes}
           onSwap={editor.swap}
           onExtendTime={setAvailableMinutes}
           onAccept={accept}

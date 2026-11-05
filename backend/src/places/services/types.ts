@@ -22,9 +22,6 @@ export type PlaceCandidate = {
   mainImageUrl: string | null;
   significance: number;
   tags: TagPercents;
-  openingHours: string | null;
-  visitMinutes: number;
-  enterable: boolean;
 };
 
 export type RouteQuery = {
@@ -32,7 +29,6 @@ export type RouteQuery = {
   end: LatLng;
   durationMinutes: number;
   tags: StyleTag[];
-  startTime?: Date;
 };
 
 export type PlannedStop = {
@@ -41,9 +37,6 @@ export type PlannedStop = {
   description: string;
   lat: number;
   lng: number;
-  visitMinutes: number;
-  enterable: boolean;
-  arriveAt?: string;
   imageUrl?: string | null;
 };
 
@@ -56,22 +49,15 @@ export type RouteCandidate = {
   place: PlaceCandidate;
   point: LatLng;
   value: number;
-  dwellMinutes: number;
-  openingHours: string | null;
 };
 
-export type TimelineStop = {
+export type PlanStop = {
   candidate: RouteCandidate;
-  arriveAt: Date;
-  departAt: Date;
   walkMinutes: number;
 };
 
 export type Plan = {
-  stops: TimelineStop[];
-  endAt: Date;
+  stops: PlanStop[];
   totalMinutes: number;
-  walkMinutes: number;
-  visitMinutes: number;
   value: number;
 };

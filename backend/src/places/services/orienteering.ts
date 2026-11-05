@@ -1,7 +1,6 @@
 import type { LatLng } from "./geo";
-import type { Plan, RouteCandidate, TimelineStop } from "./types";
+import type { Plan, PlanStop, RouteCandidate } from "./types";
 
-const MS_PER_MINUTE = 60_000;
 const IMPROVEMENT_ROUNDS = 3;
 const MIN_ADDED_MINUTES = 1;
 const SAME_LENGTH_EPSILON_MINUTES = 0.01;
@@ -9,11 +8,9 @@ const SAME_LENGTH_EPSILON_MINUTES = 0.01;
 export type PlannerOptions = {
   start: LatLng;
   end: LatLng;
-  startAt: Date;
   budgetMinutes: number;
   maxStops: number;
   walkMinutes: (a: LatLng, b: LatLng) => number;
-  isOpen: (candidate: RouteCandidate, at: Date) => boolean;
 };
 
 type Insertion = { order: RouteCandidate[]; plan: Plan; ratio: number };
@@ -23,41 +20,20 @@ export function schedule(
   o: PlannerOptions,
 ): Plan | null {
   let minutes = 0;
-  let walk = 0;
-  let visit = 0;
   let value = 0;
   let prev = o.start;
-  const stops: TimelineStop[] = [];
+  const stops: PlanStop[] = [];
   for (const c of order) {
     const w = o.walkMinutes(prev, c.point);
     minutes += w;
-    walk += w;
-    const arriveAt = new Date(o.startAt.getTime() + minutes * MS_PER_MINUTE);
-    if (!o.isOpen(c, arriveAt)) return null;
-    minutes += c.dwellMinutes;
-    visit += c.dwellMinutes;
     value += c.value;
-    stops.push({
-      candidate: c,
-      arriveAt,
-      departAt: new Date(o.startAt.getTime() + minutes * MS_PER_MINUTE),
-      walkMinutes: w,
-    });
+    stops.push({ candidate: c, walkMinutes: w });
     prev = c.point;
     if (minutes > o.budgetMinutes) return null;
   }
-  const home = o.walkMinutes(prev, o.end);
-  minutes += home;
-  walk += home;
+  minutes += o.walkMinutes(prev, o.end);
   if (minutes > o.budgetMinutes) return null;
-  return {
-    stops,
-    endAt: new Date(o.startAt.getTime() + minutes * MS_PER_MINUTE),
-    totalMinutes: minutes,
-    walkMinutes: walk,
-    visitMinutes: visit,
-    value,
-  };
+  return { stops, totalMinutes: minutes, value };
 }
 
 export function planOrienteering(
@@ -154,13 +130,5 @@ function shorten(
 }
 
 function emptyPlan(o: PlannerOptions): Plan {
-  const minutes = o.walkMinutes(o.start, o.end);
-  return {
-    stops: [],
-    endAt: new Date(o.startAt.getTime() + minutes * MS_PER_MINUTE),
-    totalMinutes: minutes,
-    walkMinutes: minutes,
-    visitMinutes: 0,
-    value: 0,
-  };
+  return { stops: [], totalMinutes: o.walkMinutes(o.start, o.end), value: 0 };
 }

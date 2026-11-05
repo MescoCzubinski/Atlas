@@ -2,7 +2,7 @@ import type {
   PlaceRepository,
   PlaceRow,
 } from "../repositories/place.repository";
-import { isEnterable, PlaceService, visitMinutes } from "./place.service";
+import { PlaceService } from "./place.service";
 import type { CandidateQuery } from "./types";
 
 const QUERY: CandidateQuery = {
@@ -23,7 +23,6 @@ const MUSEUM: PlaceRow = {
   description: "Sztuka",
   mainImageUrl: "https://img/p1.jpg",
   significance: 0,
-  facts: { openingHours: "Tu-Su 10:00-17:00" },
   tags: { museum: 90 },
 };
 
@@ -44,7 +43,7 @@ describe("PlaceService.search", () => {
     expect(findByName).toHaveBeenCalledWith("muzeum", 5);
   });
 
-  it("describes each match as a stop with a visit time and entry flag", async () => {
+  it("describes each match as a stop", async () => {
     const { service } = setup([{ ...MUSEUM, description: null }]);
     expect(await service.search("muzeum")).toEqual([
       {
@@ -53,8 +52,6 @@ describe("PlaceService.search", () => {
         description: "",
         lat: 51.11,
         lng: 17.047,
-        visitMinutes: 45,
-        enterable: true,
         imageUrl: "https://img/p1.jpg",
       },
     ]);
@@ -66,7 +63,7 @@ describe("PlaceService.search", () => {
 });
 
 describe("PlaceService.findCandidates", () => {
-  it("passes the query through and adds visit time, entry and access facts", async () => {
+  it("passes the query through and maps each row to a candidate", async () => {
     const { service, findInBoxWithTags } = setup();
     expect(await service.findCandidates(QUERY)).toEqual([
       {
@@ -78,32 +75,8 @@ describe("PlaceService.findCandidates", () => {
         mainImageUrl: "https://img/p1.jpg",
         significance: 0,
         tags: { museum: 90 },
-        openingHours: "Tu-Su 10:00-17:00",
-        visitMinutes: 45,
-        enterable: true,
       },
     ]);
     expect(findInBoxWithTags).toHaveBeenCalledWith(QUERY);
-  });
-
-  it("leaves unknown opening hours empty", async () => {
-    const { service } = setup([{ ...MUSEUM, facts: {} }]);
-    const [candidate] = await service.findCandidates(QUERY);
-    expect(candidate).toMatchObject({ openingHours: null });
-  });
-});
-
-describe("visit duration", () => {
-  it("marks places with an inside as enterable", () => {
-    expect(isEnterable({ museum: 90 })).toBe(true);
-    expect(isEnterable({ museum: 20 })).toBe(false);
-    expect(isEnterable({ street_art: 90, sculpture: 80 })).toBe(false);
-  });
-
-  it("uses the strongest known type tag and grows with significance", () => {
-    expect(visitMinutes({ museum: 90 }, 0)).toBe(45);
-    expect(visitMinutes({ museum: 90 }, 100)).toBeGreaterThan(45);
-    expect(visitMinutes({ sculpture: 80, street_art: 80 }, 0)).toBe(3);
-    expect(visitMinutes({}, 0)).toBe(8);
   });
 });

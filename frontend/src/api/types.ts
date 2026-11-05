@@ -6,8 +6,6 @@ export type RouteStop = {
   description: string;
   lat: number;
   lng: number;
-  visitMinutes: number;
-  enterable: boolean;
 };
 
 export type WalkingPath = {

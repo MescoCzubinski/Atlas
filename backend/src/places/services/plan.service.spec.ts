@@ -1,4 +1,3 @@
-import type { ConfigService } from "@nestjs/config";
 import type { RoutedPath } from "../../common/bus/contracts";
 import type { EventBus } from "../../common/bus/event-bus";
 import { DomainException } from "../../common/errors/domain.exception";
@@ -9,15 +8,12 @@ import { PlanService, walkMinutes } from "./plan.service";
 import type { PlaceCandidate, PlannedStop, RouteQuery } from "./types";
 
 const START = { lat: 51.11, lng: 17.03 };
-const START_TIME = new Date("2026-10-12T08:00:00Z");
 
 function place(
   id: string,
   lat: number,
   lng: number,
   tags: PlaceCandidate["tags"],
-  visitMinutes: number,
-  enterable = false,
   extra: Partial<PlaceCandidate> = {},
 ): PlaceCandidate {
   return {
@@ -29,39 +25,43 @@ function place(
     mainImageUrl: `https://img/${id}.jpg`,
     significance: 50,
     tags,
-    openingHours: null,
-    visitMinutes,
-    enterable,
     ...extra,
   };
 }
 
 const PLACES: PlaceCandidate[] = [
-  place("museum", 51.112, 17.032, { museum: 90, gothic: 60 }, 65, true, {
-    significance: 90,
-  }),
-  place("church", 51.113, 17.035, { church: 80, gothic: 95 }, 20, true, {
-    significance: 70,
-  }),
-  place("closed", 51.111, 17.031, { gothic: 99 }, 12, false, {
-    significance: 100,
-    openingHours: "Mo-Su 20:00-22:00",
-  }),
-  place("far", 51.2, 17.2, { gothic: 99 }, 12, false, { significance: 100 }),
-  place("mural", 51.108, 17.034, { mural: 90 }, 3, false, {
-    significance: 20,
-  }),
-  place("tower", 51.114, 17.028, { tower: 85, gothic: 75 }, 20, true, {
-    significance: 60,
-  }),
+  place(
+    "museum",
+    51.112,
+    17.032,
+    { museum: 90, gothic: 60 },
+    {
+      significance: 90,
+    },
+  ),
+  place(
+    "church",
+    51.113,
+    17.035,
+    { church: 80, gothic: 95 },
+    {
+      significance: 70,
+    },
+  ),
+  place("far", 51.2, 17.2, { gothic: 99 }, { significance: 100 }),
+  place("mural", 51.108, 17.034, { mural: 90 }, { significance: 20 }),
+  place(
+    "tower",
+    51.114,
+    17.028,
+    { tower: 85, gothic: 75 },
+    {
+      significance: 60,
+    },
+  ),
 ];
 
-function stop(
-  id: string,
-  visitMinutes: number,
-  enterable: boolean,
-  arriveAt?: string,
-) {
+function stop(id: string) {
   const p = PLACES.find((x) => x.id === id)!;
   return {
     id,
@@ -69,9 +69,6 @@ function stop(
     description: p.description ?? "",
     lat: p.latitude,
     lng: p.longitude,
-    visitMinutes,
-    enterable,
-    arriveAt,
     imageUrl: p.mainImageUrl,
   };
 }
@@ -81,7 +78,6 @@ const QUERY: RouteQuery = {
   end: START,
   durationMinutes: 120,
   tags: ["gothic"],
-  startTime: START_TIME,
 };
 
 class Outside extends DomainException {
@@ -113,24 +109,20 @@ function setup(
   const service = new PlanService(
     { request } as unknown as EventBus,
     { findCandidates } as unknown as PlaceService,
-    { get: () => "Europe/Warsaw" } as unknown as ConfigService,
   );
   return { service, route, request, findCandidates };
 }
 
 describe("PlanService.plan (characterization)", () => {
-  it("plans the current stops, order, timing and extras", async () => {
+  it("plans the current stops, order and extras", async () => {
     const { service, findCandidates } = setup();
     const route = await service.plan(QUERY);
     expect(findCandidates).toHaveBeenCalledWith(
       expect.objectContaining({ tags: ["gothic"], minPercent: 50, limit: 600 }),
     );
     expect(route).toEqual({
-      stops: [
-        stop("tower", 20, true, "2026-10-12T08:08:04.824Z"),
-        stop("church", 20, true, "2026-10-12T08:36:46.003Z"),
-      ],
-      extras: [stop("closed", 12, false), stop("museum", 65, true)],
+      stops: [stop("tower"), stop("church"), stop("museum")],
+      extras: [],
     });
   });
 
@@ -139,12 +131,8 @@ describe("PlanService.plan (characterization)", () => {
     const planned = await service.plan(QUERY);
     expect(route.mock.calls.length).toBeGreaterThan(1);
     expect(planned).toEqual({
-      stops: [stop("church", 20, true, "2026-10-12T08:08:22.128Z")],
-      extras: [
-        stop("closed", 12, false),
-        stop("tower", 20, true),
-        stop("museum", 65, true),
-      ],
+      stops: [stop("church"), stop("museum")],
+      extras: [stop("tower")],
     });
   });
 
@@ -175,8 +163,6 @@ describe("PlanService.build", () => {
       description: "",
       lat: 51.11,
       lng: 17.032,
-      visitMinutes: 20,
-      enterable: false,
     },
     {
       id: "b",
@@ -184,8 +170,6 @@ describe("PlanService.build", () => {
       description: "",
       lat: 51.112,
       lng: 17.045,
-      visitMinutes: 30,
-      enterable: false,
     },
   ];
   const END = { lat: 51.105, lng: 17.04 };
@@ -241,9 +225,6 @@ describe("PlanService.selectCandidates", () => {
     mainImageUrl: null,
     significance: 0,
     tags: { gothic: 80 },
-    openingHours: null,
-    visitMinutes: 10,
-    enterable: false,
     ...over,
   });
 
@@ -275,7 +256,6 @@ describe("PlanService.selectCandidates", () => {
     ]);
     const picked = await service.selectCandidates(SHORT);
     expect(picked.map((c) => c.place.id)).toEqual(["strong", "weak"]);
-    expect(picked[0]).toMatchObject({ dwellMinutes: 10 });
   });
 
   it("drops places whose detour does not fit the budget", async () => {

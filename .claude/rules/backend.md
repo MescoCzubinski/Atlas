@@ -53,7 +53,7 @@ src/
 
 - **One service per slice by default** (`LocationService`, `TagService`, `DirectionsService`). Split only when a service would grow past ~500 lines, along a clear seam (`places` has `PlaceService` for reading places and `PlanService` for planning). Do not split into one class per small responsibility.
 - **One client class per external API or heavy resource** (`PhotonClient`, `GraphHopperClient`, `EmbeddingModel`): it owns the HTTP/model calls and maps their responses, so tests can swap it. No abstract class or token in front of it while there is only one implementation.
-- **Pure logic is plain exported functions** (`orienteering.ts`, `opening-hours.ts`, `walkMinutes`, `rankTags`), not injectable classes.
+- **Pure logic is plain exported functions** (`orienteering.ts`, `walkMinutes`, `rankTags`), not injectable classes.
 - A service may inject other services and clients of the same slice (never from another slice); dependencies form an acyclic graph. The controller calls the service that implements the use case. Never `new` a collaborator inside a service.
 - Keep services free of HTTP concerns (`Request`, status codes); they throw domain exceptions (handled by the exception filter).
 

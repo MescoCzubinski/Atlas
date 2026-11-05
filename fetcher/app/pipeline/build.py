@@ -156,7 +156,6 @@ def build_documents(region: Region, data: SourceData, embedder: Embedder) -> tup
             "material": p.get("material"),
             "protection": p.get("protection"),
             "inscription": clip(p.get("inscription") or "", 200),
-            "openingHours": (p.get("flags") or {}).get("opening_hours"),
             "kinds": clean_kinds(p)[:3],
         }
         links = {"wikipedia": p.get("wikipedia"), "wikidata": p.get("wikidata"), "website": p.get("website"), "nid": p.get("nid_link")}

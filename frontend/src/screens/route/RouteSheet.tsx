@@ -1,7 +1,7 @@
 import { ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { formatDistance, formatMinutes } from "@/lib/format";
-import { routeTotals } from "./totals";
+import { walkingMinutes } from "./totals";
 import type { RouteStop, WalkingPath } from "@/api/types";
 import { Collapse } from "@/ui/collapse";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,6 @@ type Props = {
 
 export function RouteSheet({ stops, path, onPick }: Props) {
   const [open, setOpen] = useState(false);
-  const totals = routeTotals(path, stops);
 
   return (
     <section
@@ -38,8 +37,8 @@ export function RouteSheet({ stops, path, onPick }: Props) {
               Szczegóły trasy
             </span>
             <span className="text-sm text-muted-foreground">
-              {formatDistance(path.distanceMeters)} pieszo · razem{" "}
-              {formatMinutes(totals.totalMinutes)}
+              {formatDistance(path.distanceMeters)} pieszo ·{" "}
+              {formatMinutes(walkingMinutes(path))}
             </span>
           </span>
           <ChevronUp
@@ -54,20 +53,6 @@ export function RouteSheet({ stops, path, onPick }: Props) {
       <div id="route-sheet-body">
         <Collapse open={open}>
           <div className="grid max-h-[50dvh] gap-3 overflow-y-auto border-t px-4 py-3">
-            <dl className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground">
-              {[
-                ["Spacer", formatMinutes(totals.walkingMinutes)],
-                ["Zwiedzanie", formatMinutes(totals.visitMinutes)],
-                ["Razem", formatMinutes(totals.totalMinutes)],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-lg bg-secondary p-2">
-                  <dt>{label}</dt>
-                  <dd className="text-sm font-semibold text-foreground">
-                    {value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
             <ol aria-label="Miejsca na trasie" className="grid gap-2">
               {stops.map((stop, i) => (
                 <li key={stop.id}>
@@ -88,9 +73,6 @@ export function RouteSheet({ stops, path, onPick }: Props) {
                     <span className="grid min-w-0 flex-1 leading-snug">
                       <span className="truncate text-sm font-medium">
                         {stop.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatMinutes(stop.visitMinutes)}
                       </span>
                     </span>
                   </button>

@@ -1,21 +1,17 @@
 import {
   planOrienteering as planRoute,
-  schedule,
   type PlannerOptions,
 } from "./orienteering";
 import { walkMinutes } from "./plan.service";
 import type { PlaceCandidate, RouteCandidate } from "./types";
 
 const START = { lat: 51.11, lng: 17.03 };
-const startAt = new Date("2026-10-12T08:00:00Z");
 
 function candidate(
   id: string,
   lat: number,
   lng: number,
   value = 1,
-  dwell = 10,
-  hours: string | null = null,
 ): RouteCandidate {
   const place = {
     id,
@@ -23,27 +19,18 @@ function candidate(
     latitude: lat,
     longitude: lng,
     tags: {},
-    facts: {},
     significance: 50,
   } as unknown as PlaceCandidate;
-  return {
-    place,
-    point: { lat, lng },
-    value,
-    dwellMinutes: dwell,
-    openingHours: hours,
-  };
+  return { place, point: { lat, lng }, value };
 }
 
 function options(over: Partial<PlannerOptions> = {}): PlannerOptions {
   return {
     start: START,
     end: START,
-    startAt,
     budgetMinutes: 60,
     maxStops: 10,
     walkMinutes: (a, b) => walkMinutes(a, b),
-    isOpen: () => true,
     ...over,
   };
 }
@@ -59,9 +46,9 @@ describe("route planner", () => {
   });
 
   it("prefers the more valuable place when only one fits", () => {
-    const worth = candidate("worth", 51.115, 17.03, 5, 20);
-    const meh = candidate("meh", 51.115, 17.031, 1, 20);
-    const plan = planRoute([meh, worth], options({ budgetMinutes: 45 }));
+    const worth = candidate("worth", 51.115, 17.03, 5);
+    const meh = candidate("meh", 51.115, 17.035, 1);
+    const plan = planRoute([meh, worth], options({ budgetMinutes: 25 }));
     expect(plan.stops.map((s) => s.candidate.place.id)).toEqual(["worth"]);
   });
 
@@ -71,22 +58,6 @@ describe("route planner", () => {
     );
     const plan = planRoute(many, options({ maxStops: 3, budgetMinutes: 240 }));
     expect(plan.stops).toHaveLength(3);
-  });
-
-  it("skips a place that is closed when we would arrive", () => {
-    const closed = candidate(
-      "closed",
-      51.112,
-      17.03,
-      9,
-      10,
-      "Mo-Su 20:00-22:00",
-    );
-    const open = candidate("open", 51.112, 17.032, 1, 10);
-    const o = options({ isOpen: (c) => c.openingHours === null });
-    const plan = planRoute([closed, open], o);
-    expect(plan.stops.map((s) => s.candidate.place.id)).toEqual(["open"]);
-    expect(schedule([closed], o)).toBeNull();
   });
 
   it("orders stops to avoid backtracking", () => {

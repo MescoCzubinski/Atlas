@@ -1,5 +1,5 @@
 import { formatDistance, formatMinutes } from "@/lib/format";
-import { routeTotals } from "./totals";
+import { walkingMinutes } from "./totals";
 import type { RouteStop } from "@/api/types";
 import { AddPlaces } from "./AddPlaces";
 import { RouteStopList } from "./StopList";
@@ -17,7 +17,6 @@ type Props = {
   onMove: (from: number, to: number) => void;
   onRemove: (id: string) => void;
   onAdd: (stop: RouteStop, index?: number) => void;
-  onSetVisitMinutes: (id: string, minutes: number) => void;
   onSwap: (removeIds: string[], stop?: RouteStop, index?: number) => void;
   onExtendTime: (minutes: number) => void;
   onAccept: () => void;
@@ -34,12 +33,11 @@ export function RoutePanel({
   onRemove,
   onAdd,
   onSwap,
-  onSetVisitMinutes,
   onExtendTime,
   onAccept,
 }: Props) {
-  const totals = routeTotals(route.path, route.stops);
-  const overBy = totals.totalMinutes - availableMinutes;
+  const totalMinutes = walkingMinutes(route.path);
+  const overBy = totalMinutes - availableMinutes;
 
   return (
     <section
@@ -57,7 +55,7 @@ export function RoutePanel({
           <AddPlaces
             route={route}
             availableMinutes={availableMinutes}
-            totalMinutes={totals.totalMinutes}
+            totalMinutes={totalMinutes}
             onAdd={onAdd}
             onSwap={onSwap}
             onExtendTime={onExtendTime}
@@ -75,7 +73,6 @@ export function RoutePanel({
             stops={route.stops}
             onMove={onMove}
             onRemove={onRemove}
-            onSetVisitMinutes={onSetVisitMinutes}
             onSelect={onSelect}
             compact={compact}
           />
@@ -92,13 +89,7 @@ export function RoutePanel({
         >
           <span className="font-medium">
             {formatDistance(route.path.distanceMeters)} pieszo ·{" "}
-            {formatMinutes(totals.walkingMinutes)}
-          </span>
-          <span className="text-muted-foreground">
-            Zwiedzanie: {formatMinutes(totals.visitMinutes)}
-          </span>
-          <span className="font-medium">
-            Razem: {formatMinutes(totals.totalMinutes)}
+            {formatMinutes(totalMinutes)}
             {recalculating && " (przeliczamy…)"}
           </span>
           {overBy > 0 && (

@@ -1,20 +1,13 @@
-import { ArrowDown, ArrowUp, GripVertical, Minus, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical, X } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { formatMinutes } from "@/lib/format";
 import type { RouteStop } from "@/api/types";
 import { Button } from "@/ui/button";
 import { cn } from "@/lib/utils";
-
-const stepUp = (m: number) => (m < 30 ? 5 : 15);
-const stepDown = (m: number) => (m <= 30 ? 5 : 15);
-const MAX_VISIT = 240;
-const MIN_VISIT = 5;
 
 type Props = {
   stops: RouteStop[];
   onMove: (from: number, to: number) => void;
   onRemove: (id: string) => void;
-  onSetVisitMinutes: (id: string, minutes: number) => void;
   onSelect?: (id: string) => void;
   compact?: boolean;
 };
@@ -23,7 +16,6 @@ export function RouteStopList({
   stops,
   onMove,
   onRemove,
-  onSetVisitMinutes,
   onSelect,
   compact = false,
 }: Props) {
@@ -148,53 +140,6 @@ export function RouteStopList({
             >
               <span className="truncate text-sm font-medium">{stop.name}</span>
             </button>
-            {
-              <div
-                role="group"
-                aria-label={`Czas zwiedzania: ${stop.name}`}
-                className="flex items-center gap-1 text-xs text-muted-foreground"
-              >
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="size-7"
-                  aria-label={`Skróć zwiedzanie: ${stop.name}`}
-                  disabled={stop.visitMinutes <= MIN_VISIT}
-                  onClick={() =>
-                    onSetVisitMinutes(
-                      stop.id,
-                      Math.max(
-                        MIN_VISIT,
-                        stop.visitMinutes - stepDown(stop.visitMinutes),
-                      ),
-                    )
-                  }
-                >
-                  <Minus />
-                </Button>
-                <span>zwiedzanie · {formatMinutes(stop.visitMinutes)}</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="size-7"
-                  aria-label={`Wydłuż zwiedzanie: ${stop.name}`}
-                  disabled={stop.visitMinutes >= MAX_VISIT}
-                  onClick={() =>
-                    onSetVisitMinutes(
-                      stop.id,
-                      Math.min(
-                        MAX_VISIT,
-                        stop.visitMinutes + stepUp(stop.visitMinutes),
-                      ),
-                    )
-                  }
-                >
-                  <Plus />
-                </Button>
-              </div>
-            }
           </div>
           {!compact && (
             <>

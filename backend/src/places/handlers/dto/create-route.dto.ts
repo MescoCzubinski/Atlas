@@ -4,7 +4,6 @@ import {
   IsArray,
   IsIn,
   IsInt,
-  IsISO8601,
   IsOptional,
   Max,
   Min,
@@ -28,10 +27,6 @@ export class CreateRouteDto {
   @Type(() => PointDto)
   end?: PointDto;
 
-  @IsOptional()
-  @IsISO8601({ strict: true })
-  startTime?: string;
-
   @IsInt()
   @Min(MIN_DURATION)
   @Max(MAX_DURATION)
@@ -48,7 +43,6 @@ export class CreateRouteDto {
       end: this.end ?? this.start,
       durationMinutes: this.durationMinutes,
       tags: this.tags,
-      startTime: this.startTime ? new Date(this.startTime) : undefined,
     };
   }
 }

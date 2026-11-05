@@ -10,7 +10,6 @@ const RAW = {
   description: null,
   main_image_url: "https://img/p1.jpg",
   significance: 80,
-  facts: { openingHours: "Mo-Su 10:00-17:00" },
   tags: { gothic: 90 },
 };
 
@@ -43,7 +42,6 @@ describe("PlaceRepository", () => {
         description: null,
         mainImageUrl: "https://img/p1.jpg",
         significance: 80,
-        facts: { openingHours: "Mo-Su 10:00-17:00" },
         tags: { gothic: 90 },
       },
     ]);

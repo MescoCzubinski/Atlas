@@ -9,7 +9,6 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
-import { formatMinutes } from "@/lib/format";
 import type { RoutePoint, RouteStop, WalkingPath } from "@/api/types";
 import { useIsDesktop } from "./useIsDesktop";
 import { Button } from "@/ui/button";
@@ -164,9 +163,6 @@ function PlaceDetails({ place }: { place: RouteStop }) {
         <h2 className="font-heading text-2xl leading-tight font-extrabold">
           {place.name}
         </h2>
-        <span className="text-sm text-muted-foreground">
-          Zwiedzanie: {formatMinutes(place.visitMinutes)}
-        </span>
       </CardHeader>
       <CardContent className="px-4 pt-2 pb-4 text-sm leading-relaxed text-muted-foreground">
         {place.description}

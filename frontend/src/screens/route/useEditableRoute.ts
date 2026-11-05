@@ -61,18 +61,6 @@ export function useEditableRoute() {
     [],
   );
 
-  const setVisitMinutes = useCallback((id: string, minutes: number) => {
-    setRoute(
-      (r) =>
-        r && {
-          ...r,
-          stops: r.stops.map((s) =>
-            s.id === id ? { ...s, visitMinutes: minutes } : s,
-          ),
-        },
-    );
-  }, []);
-
   const remove = useCallback((id: string) => swap([id]), [swap]);
 
   const add = useCallback(
@@ -129,6 +117,5 @@ export function useEditableRoute() {
     remove,
     add,
     swap,
-    setVisitMinutes,
   };
 }
