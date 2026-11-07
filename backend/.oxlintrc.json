@@ -2,7 +2,7 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "overrides": [
     {
-      "files": ["src/city/**"],
+      "files": ["src/directions/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -12,12 +12,10 @@
                 "group": [
                   "**/health",
                   "**/health/**",
-                  "**/path",
-                  "**/path/**",
+                  "**/location",
+                  "**/location/**",
                   "**/places",
                   "**/places/**",
-                  "**/route",
-                  "**/route/**",
                   "**/tag",
                   "**/tag/**"
                 ],
@@ -37,14 +35,12 @@
             "patterns": [
               {
                 "group": [
-                  "**/city",
-                  "**/city/**",
-                  "**/path",
-                  "**/path/**",
+                  "**/directions",
+                  "**/directions/**",
+                  "**/location",
+                  "**/location/**",
                   "**/places",
                   "**/places/**",
-                  "**/route",
-                  "**/route/**",
                   "**/tag",
                   "**/tag/**"
                 ],
@@ -56,7 +52,7 @@
       }
     },
     {
-      "files": ["src/path/**"],
+      "files": ["src/location/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -64,14 +60,12 @@
             "patterns": [
               {
                 "group": [
-                  "**/city",
-                  "**/city/**",
+                  "**/directions",
+                  "**/directions/**",
                   "**/health",
                   "**/health/**",
                   "**/places",
                   "**/places/**",
-                  "**/route",
-                  "**/route/**",
                   "**/tag",
                   "**/tag/**"
                 ],
@@ -91,41 +85,12 @@
             "patterns": [
               {
                 "group": [
-                  "**/city",
-                  "**/city/**",
+                  "**/directions",
+                  "**/directions/**",
                   "**/health",
                   "**/health/**",
-                  "**/path",
-                  "**/path/**",
-                  "**/route",
-                  "**/route/**",
-                  "**/tag",
-                  "**/tag/**"
-                ],
-                "message": "A slice never imports another slice; use the bus (common/bus)."
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["src/route/**"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": [
-                  "**/city",
-                  "**/city/**",
-                  "**/health",
-                  "**/health/**",
-                  "**/path",
-                  "**/path/**",
-                  "**/places",
-                  "**/places/**",
+                  "**/location",
+                  "**/location/**",
                   "**/tag",
                   "**/tag/**"
                 ],
@@ -145,16 +110,14 @@
             "patterns": [
               {
                 "group": [
-                  "**/city",
-                  "**/city/**",
+                  "**/directions",
+                  "**/directions/**",
                   "**/health",
                   "**/health/**",
-                  "**/path",
-                  "**/path/**",
+                  "**/location",
+                  "**/location/**",
                   "**/places",
-                  "**/places/**",
-                  "**/route",
-                  "**/route/**"
+                  "**/places/**"
                 ],
                 "message": "A slice never imports another slice; use the bus (common/bus)."
               }
@@ -172,16 +135,14 @@
             "patterns": [
               {
                 "group": [
-                  "**/city",
-                  "**/city/**",
+                  "**/directions",
+                  "**/directions/**",
                   "**/health",
                   "**/health/**",
-                  "**/path",
-                  "**/path/**",
+                  "**/location",
+                  "**/location/**",
                   "**/places",
                   "**/places/**",
-                  "**/route",
-                  "**/route/**",
                   "**/tag",
                   "**/tag/**"
                 ],

@@ -1,3 +1,4 @@
+import type { RoutedPath } from "../../common/bus/contracts";
 import type { StyleTag } from "../../common/types/style-tag";
 import type { LatLng } from "./geo";
 
@@ -19,9 +20,17 @@ export type PlaceCandidate = {
   latitude: number;
   longitude: number;
   description: string | null;
-  mainImageUrl: string | null;
   significance: number;
   tags: TagPercents;
+};
+
+/** A place as the API returns it, in search results and in a planned route. */
+export type PlaceView = {
+  id: string;
+  name: string;
+  description: string;
+  lat: number;
+  lng: number;
 };
 
 export type RouteQuery = {
@@ -31,18 +40,10 @@ export type RouteQuery = {
   tags: StyleTag[];
 };
 
-export type PlannedStop = {
-  id: string;
-  name: string;
-  description: string;
-  lat: number;
-  lng: number;
-  imageUrl?: string | null;
-};
-
 export type PlannedRoute = {
-  stops: PlannedStop[];
-  extras: PlannedStop[];
+  stops: PlaceView[];
+  extras: PlaceView[];
+  path: RoutedPath;
 };
 
 export type RouteCandidate = {

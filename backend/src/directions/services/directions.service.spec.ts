@@ -1,5 +1,5 @@
 import type { RoutedPath } from "../../common/bus/contracts";
-import type { EventBus } from "../../common/bus/event-bus";
+import type { Bus } from "../../common/bus/bus";
 import { DomainException } from "../../common/errors/domain.exception";
 import { DirectionsService } from "./directions.service";
 import type { GraphHopperClient } from "./graphhopper.client";
@@ -27,7 +27,7 @@ function setup(inside = true) {
     if (!inside) throw new Outside();
   });
   const service = new DirectionsService(
-    { request } as unknown as EventBus,
+    { request } as unknown as Bus,
     { route } as unknown as GraphHopperClient,
   );
   return { service, route, request };

@@ -4,8 +4,9 @@ import { EmbeddingModel } from "./embedding.model";
 import { TAG_LABELS } from "./tag-labels";
 import { TAG_PHRASES } from "./tag-phrases";
 
-const MIN_SCORE = 0.74;
-const SCORE_MARGIN = 0.06;
+// Cosine similarities of normalized embeddings, tuned by hand for the model in embedding.model.ts.
+const MIN_SCORE = 0.74; // below this a tag is noise, not a match
+const SCORE_MARGIN = 0.06; // runner-ups this close to the best match are kept too
 export const MAX_MATCHES = 3;
 
 export type TagGroup = keyof typeof TAG_GROUPS;
@@ -80,10 +81,7 @@ export class TagService {
 
   private async embedAllTags(): Promise<TagVector<StyleTag>[]> {
     const entries = this.list().flatMap((tag) =>
-      [tag.label, ...TAG_PHRASES[tag.id].split(", ")].map((text) => ({
-        id: tag.id,
-        text: text.trim(),
-      })),
+      [tag.label, ...TAG_PHRASES[tag.id]].map((text) => ({ id: tag.id, text })),
     );
     const vectors = await this.model.embed(entries.map((e) => e.text));
     return entries.map((entry, i) => ({

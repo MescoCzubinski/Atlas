@@ -6,12 +6,13 @@ import { PathRouterUnavailableException } from "../exceptions/path-router-unavai
 import type { LatLng } from "./geo";
 
 const PROFILE = "safe_pedestrian";
-const REQUEST_TIMEOUT = 10000;
+const REQUEST_TIMEOUT_MS = 10_000;
+const MS_PER_SECOND = 1000;
 
 export type GraphHopperResponse = {
   paths?: {
-    distance: number;
-    time: number;
+    distance: number; // m
+    time: number; // ms
     points?: { coordinates?: [number, number][] };
   }[];
 };
@@ -22,7 +23,7 @@ export function toRoutedPath(body: GraphHopperResponse): RoutedPath | null {
   if (!path || !coordinates?.length) return null;
   return {
     distanceMeters: Math.round(path.distance),
-    durationSeconds: Math.round(path.time / 1000),
+    durationSeconds: Math.round(path.time / MS_PER_SECOND),
     coordinates: coordinates.map(([lng, lat]) => ({ lat, lng })),
   };
 }
@@ -50,7 +51,7 @@ export class GraphHopperClient {
     let res: Response;
     try {
       res = await fetch(url, {
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: { Authorization: `Bearer ${this.token}` },
       });
     } catch (error) {

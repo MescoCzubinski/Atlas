@@ -8,7 +8,7 @@ import {
 import type { Bbox, LatLng } from "./geo";
 import { PhotonClient, type GeocodedLocation } from "./photon.client";
 
-export const DEFAULT_LOCATION_LIMIT = 6;
+export const MAX_RESULTS = 6;
 
 export type ReverseResult = {
   location: GeocodedLocation;
@@ -31,30 +31,27 @@ export class LocationService {
     private readonly photon: PhotonClient,
   ) {}
 
-  async search(
-    query: string,
-    limit = DEFAULT_LOCATION_LIMIT,
-  ): Promise<GeocodedLocation[]> {
-    const supported = await this.cities.findAllByName();
+  async search(query: string): Promise<GeocodedLocation[]> {
+    const supported = await this.cities.findAll();
     const batches = await Promise.all(
       supported.map(async (city) => {
         const found = await this.photon.search(
           `${query} ${city.name}`,
           city.bbox,
-          limit,
+          MAX_RESULTS,
         );
         return found.filter((location) => location.city === city.name);
       }),
     );
     const unique = new Map(batches.flat().map((l) => [l.label, l]));
-    return [...unique.values()].slice(0, limit);
+    return [...unique.values()].slice(0, MAX_RESULTS);
   }
 
   async reverse(lat: number, lng: number): Promise<ReverseResult> {
     const location = await this.photon.reverse(lat, lng);
     if (!location)
       throw new NotFoundDomainException("Address", `${lat},${lng}`);
-    const supported = await this.cities.findAllByName();
+    const supported = await this.cities.findAll();
     return {
       location,
       supported: insideAny(supported, { lat, lng }),
@@ -63,7 +60,7 @@ export class LocationService {
   }
 
   async assertInsideSupported(points: LatLng[]): Promise<void> {
-    const supported = await this.cities.findAllByName();
+    const supported = await this.cities.findAll();
     if (!points.every((p) => insideAny(supported, p))) {
       throw new OutsideSupportedAreaException();
     }

@@ -1,8 +1,8 @@
 const REQUIRED = [
+  "PORT",
   "DATABASE_URL",
   "GRAPHHOPPER_URL",
   "GRAPHHOPPER_TOKEN",
-  "EMBEDDING_MODEL",
 ] as const;
 
 export function validateEnv(env: Record<string, unknown>) {

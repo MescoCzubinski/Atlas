@@ -1,3 +1,4 @@
+/** Every tag, by group. STYLE_TAGS defines the style_tag enum in the database (see PlaceTag). */
 export const TAG_GROUPS = {
   style: [
     "romanesque",

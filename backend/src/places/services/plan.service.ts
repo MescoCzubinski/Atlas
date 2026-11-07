@@ -1,74 +1,50 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { RoutedPath } from "../../common/bus/contracts";
-import { EventBus } from "../../common/bus/event-bus";
+import { Bus } from "../../common/bus/bus";
 import { NoMatchingPlacesException } from "../exceptions/no-matching-places.exception";
 import { TimeBudgetTooSmallException } from "../exceptions/time-budget-too-small.exception";
-import type { LatLng } from "./geo";
+import {
+  DETOUR_FACTOR,
+  METERS_PER_DEGREE_LAT,
+  toRadians,
+  walkMinutes,
+  WALKING_METERS_PER_MINUTE,
+} from "./geo";
 import { planOrienteering, type PlannerOptions } from "./orienteering";
-import { PlaceService } from "./place.service";
+import { PlaceService, toPlaceView } from "./place.service";
 import type {
   Plan,
   PlaceCandidate,
   PlannedRoute,
-  PlannedStop,
   RouteCandidate,
   RouteQuery,
 } from "./types";
 
-export type BuiltRoute = PlannedRoute & { path: RoutedPath };
-
+const MIN_TAG_PERCENT = 50; // a place counts for a tag from this percent up
+const MAX_PLACES_READ = 600; // places read from the reachable box, most significant first
+const MAX_CANDIDATES = 120; // best-valued places handed to the planner, to keep it fast
 const MAX_STOPS = 60; // a safety bound; the time budget decides how many stops fit
-const MAX_EXTRAS = 10;
-const MAX_REFINEMENTS = 3;
+const MAX_EXTRAS = 10; // runner-up places offered for adding by hand
+const MAX_REFINEMENTS = 3; // re-plans while the real walk is longer than the estimate
 const SECONDS_PER_MINUTE = 60;
 
-const MIN_TAG_PERCENT = 50;
-const MAX_CANDIDATES = 120;
-const QUERY_LIMIT = 600;
-const KM_PER_DEGREE = 111.2;
-const BASE_SIGNIFICANCE = 0.5;
-
-const EARTH_RADIUS_M = 6_371_000;
-export const DETOUR_FACTOR = 1.3;
-export const DEFAULT_WALKING_SPEED_KMH = 4.5;
-
-export function walkMinutes(
-  a: LatLng,
-  b: LatLng,
-  speedKmh = DEFAULT_WALKING_SPEED_KMH,
-): number {
-  const rad = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * rad;
-  const dLng = (b.lng - a.lng) * rad;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
-  const meters = 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(h));
-  return ((meters * DETOUR_FACTOR) / 1000 / speedKmh) * 60;
-}
+const MAX_SIGNIFICANCE = 100; // places.significance runs from 0 to 100
+const MIN_NOTABILITY = 0.5; // weight of a place with significance 0; the most significant weighs 1
 
 @Injectable()
 export class PlanService {
   private readonly log = new Logger(PlanService.name);
 
   constructor(
-    private readonly bus: EventBus,
+    private readonly bus: Bus,
     private readonly places: PlaceService,
   ) {}
 
-  async build(query: RouteQuery): Promise<BuiltRoute> {
+  async build(query: RouteQuery): Promise<PlannedRoute> {
     await this.bus.request("location.ensure-inside", {
       points: [query.start, query.end],
     });
-    const { stops, extras } = await this.plan(query);
-    const path = await this.bus.request("directions.route", {
-      points: [
-        query.start,
-        ...stops.map(({ lat, lng }) => ({ lat, lng })),
-        query.end,
-      ],
-    });
-    return { stops, extras, path };
+    return this.plan(query);
   }
 
   async plan(query: RouteQuery): Promise<PlannedRoute> {
@@ -84,35 +60,37 @@ export class PlanService {
       end: query.end,
       budgetMinutes: query.durationMinutes,
       maxStops: MAX_STOPS,
-      walkMinutes: (a, b) => walkMinutes(a, b),
+      walkMinutes,
     };
     let plan = planOrienteering(candidates, options);
     if (plan.stops.length === 0) throw new NoMatchingPlacesException();
 
-    for (let attempt = 0; attempt < MAX_REFINEMENTS; attempt++) {
-      const order = plan.stops.map((s) => s.candidate);
-      const path = await this.bus.request("directions.route", {
-        points: [query.start, ...order.map((c) => c.point), query.end],
-      });
-      const walk = path.durationSeconds / SECONDS_PER_MINUTE;
-      if (walk <= query.durationMinutes || order.length <= 1) break;
+    let path = await this.route(query, plan);
+    for (
+      let attempt = 0;
+      attempt < MAX_REFINEMENTS &&
+      plan.stops.length > 1 &&
+      path.durationSeconds / SECONDS_PER_MINUTE > query.durationMinutes;
+      attempt++
+    ) {
       this.log.debug(
-        `real walk ${Math.round(walk)} min overshoots, dropping a stop`,
+        `real walk ${Math.round(path.durationSeconds / SECONDS_PER_MINUTE)} min overshoots, dropping a stop`,
       );
       const drop = this.weakest(plan);
       plan = planOrienteering(
         candidates.filter((c) => c !== drop),
-        { ...options, maxStops: order.length - 1 },
+        { ...options, maxStops: plan.stops.length - 1 },
       );
-      if (plan.stops.length === 0) break;
+      path = await this.route(query, plan);
     }
     const chosen = new Set(plan.stops.map((s) => s.candidate));
     return {
-      stops: plan.stops.map((s) => this.toPlannedStop(s.candidate)),
+      stops: plan.stops.map((s) => toPlaceView(s.candidate.place)),
       extras: candidates
         .filter((c) => !chosen.has(c))
         .slice(0, MAX_EXTRAS)
-        .map((c) => this.toPlannedStop(c)),
+        .map((c) => toPlaceView(c.place)),
+      path,
     };
   }
 
@@ -123,7 +101,7 @@ export class PlanService {
       ...box,
       tags: query.tags,
       minPercent: MIN_TAG_PERCENT,
-      limit: QUERY_LIMIT,
+      limit: MAX_PLACES_READ,
     });
     return found
       .map((p) => this.toCandidate(p, query))
@@ -131,6 +109,16 @@ export class PlanService {
       .filter((c) => this.detourFits(c, query))
       .sort((a, b) => b.value - a.value)
       .slice(0, MAX_CANDIDATES);
+  }
+
+  private route(query: RouteQuery, plan: Plan): Promise<RoutedPath> {
+    return this.bus.request("directions.route", {
+      points: [
+        query.start,
+        ...plan.stops.map((s) => s.candidate.point),
+        query.end,
+      ],
+    });
   }
 
   private toCandidate(
@@ -145,11 +133,13 @@ export class PlanService {
     }
     if (relevance === 0) return null;
 
-    const notable = BASE_SIGNIFICANCE + p.significance / 200;
+    const notability =
+      MIN_NOTABILITY +
+      (1 - MIN_NOTABILITY) * (p.significance / MAX_SIGNIFICANCE);
     return {
       place: p,
       point: { lat: p.latitude, lng: p.longitude },
-      value: relevance * notable,
+      value: relevance * notability,
     };
   }
 
@@ -159,33 +149,25 @@ export class PlanService {
     return there + back <= query.durationMinutes;
   }
 
+  /**
+   * A stop fits when walking start → stop → end takes no longer than the budget: an ellipse
+   * around the start–end midpoint whose semi-major axis is half the straight-line distance
+   * walkable in the budget. This box bounds that ellipse.
+   */
   private reachableBox(query: RouteQuery) {
-    const walkKm =
-      ((query.durationMinutes / 60) * DEFAULT_WALKING_SPEED_KMH) /
-      DETOUR_FACTOR;
+    const reachMeters =
+      (query.durationMinutes * WALKING_METERS_PER_MINUTE) / DETOUR_FACTOR / 2;
     const centre = {
       lat: (query.start.lat + query.end.lat) / 2,
       lng: (query.start.lng + query.end.lng) / 2,
     };
-    const dLat = walkKm / 2 / KM_PER_DEGREE;
-    const dLng = dLat / Math.cos((centre.lat * Math.PI) / 180);
+    const dLat = reachMeters / METERS_PER_DEGREE_LAT;
+    const dLng = dLat / Math.cos(toRadians(centre.lat));
     return {
       south: centre.lat - dLat,
       north: centre.lat + dLat,
       west: centre.lng - dLng,
       east: centre.lng + dLng,
-    };
-  }
-
-  private toPlannedStop(c: RouteCandidate): PlannedStop {
-    const p = c.place;
-    return {
-      id: p.id,
-      name: p.name,
-      description: p.description ?? "",
-      lat: p.latitude,
-      lng: p.longitude,
-      imageUrl: p.mainImageUrl,
     };
   }
 

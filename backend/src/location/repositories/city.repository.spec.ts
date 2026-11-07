@@ -12,7 +12,7 @@ describe("CityRepository", () => {
       find,
     } as unknown as Repository<City>);
 
-    expect(await repository.findAllByName()).toEqual([
+    expect(await repository.findAll()).toEqual([
       { name: "Kraków", bbox: [19.8, 49.95, 20.1, 50.15] },
       { name: "Wrocław", bbox: [16.8, 51.04, 17.18, 51.21] },
     ]);

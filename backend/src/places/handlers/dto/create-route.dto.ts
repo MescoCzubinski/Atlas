@@ -13,8 +13,8 @@ import { PointDto } from "./point.dto";
 import { STYLE_TAGS, type StyleTag } from "../../../common/types/style-tag";
 import type { RouteQuery } from "../../services/types";
 
-const MIN_DURATION = 15;
-const MAX_DURATION = 720;
+const MIN_DURATION_MINUTES = 15;
+const MAX_DURATION_MINUTES = 12 * 60;
 const MAX_TAGS = 20;
 
 export class CreateRouteDto {
@@ -28,8 +28,8 @@ export class CreateRouteDto {
   end?: PointDto;
 
   @IsInt()
-  @Min(MIN_DURATION)
-  @Max(MAX_DURATION)
+  @Min(MIN_DURATION_MINUTES)
+  @Max(MAX_DURATION_MINUTES)
   durationMinutes!: number;
 
   @IsArray()

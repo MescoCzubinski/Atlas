@@ -1,11 +1,11 @@
+import type { Bus } from "../../common/bus/bus";
 import type { RoutedPath } from "../../common/bus/contracts";
-import type { EventBus } from "../../common/bus/event-bus";
 import { DomainException } from "../../common/errors/domain.exception";
 import { NoMatchingPlacesException } from "../exceptions/no-matching-places.exception";
 import { TimeBudgetTooSmallException } from "../exceptions/time-budget-too-small.exception";
 import type { PlaceService } from "./place.service";
-import { PlanService, walkMinutes } from "./plan.service";
-import type { PlaceCandidate, PlannedStop, RouteQuery } from "./types";
+import { PlanService } from "./plan.service";
+import type { PlaceCandidate, PlannedRoute, RouteQuery } from "./types";
 
 const START = { lat: 51.11, lng: 17.03 };
 
@@ -22,7 +22,6 @@ function place(
     latitude: lat,
     longitude: lng,
     description: id === "museum" ? "A museum" : null,
-    mainImageUrl: `https://img/${id}.jpg`,
     significance: 50,
     tags,
     ...extra,
@@ -69,7 +68,6 @@ function stop(id: string) {
     description: p.description ?? "",
     lat: p.latitude,
     lng: p.longitude,
-    imageUrl: p.mainImageUrl,
   };
 }
 
@@ -107,33 +105,39 @@ function setup(
     },
   );
   const service = new PlanService(
-    { request } as unknown as EventBus,
+    { request } as unknown as Bus,
     { findCandidates } as unknown as PlaceService,
   );
   return { service, route, request, findCandidates };
 }
 
-describe("PlanService.plan (characterization)", () => {
+describe("PlanService.plan", () => {
   it("plans the current stops, order and extras", async () => {
     const { service, findCandidates } = setup();
-    const route = await service.plan(QUERY);
+    const { stops, extras } = await service.plan(QUERY);
     expect(findCandidates).toHaveBeenCalledWith(
       expect.objectContaining({ tags: ["gothic"], minPercent: 50, limit: 600 }),
     );
-    expect(route).toEqual({
-      stops: [stop("tower"), stop("church"), stop("museum")],
-      extras: [],
-    });
+    expect(stops).toEqual([stop("tower"), stop("church"), stop("museum")]);
+    expect(extras).toEqual([]);
+  });
+
+  it("walks from the start through the stops to the end, routing once when it fits", async () => {
+    const { service, route } = setup();
+    const end = { lat: 51.111, lng: 17.03 };
+    const planned = await service.plan({ ...QUERY, end });
+    const points = planned.stops.map(({ lat, lng }) => ({ lat, lng }));
+    expect(route).toHaveBeenCalledTimes(1);
+    expect(route).toHaveBeenCalledWith([START, ...points, end]);
+    expect(planned.path.durationSeconds).toBe((points.length + 1) * 300);
   });
 
   it("drops stops while the real walk overshoots the budget", async () => {
     const { service, route } = setup(2000);
-    const planned = await service.plan(QUERY);
+    const { stops, extras } = await service.plan(QUERY);
     expect(route.mock.calls.length).toBeGreaterThan(1);
-    expect(planned).toEqual({
-      stops: [stop("church"), stop("museum")],
-      extras: [stop("tower")],
-    });
+    expect(stops).toEqual([stop("church"), stop("museum")]);
+    expect(extras).toEqual([stop("tower")]);
   });
 
   it("refuses a budget shorter than the direct walk", async () => {
@@ -156,46 +160,22 @@ describe("PlanService.plan (characterization)", () => {
 });
 
 describe("PlanService.build", () => {
-  const STOPS: PlannedStop[] = [
-    {
-      id: "a",
-      name: "A",
-      description: "",
-      lat: 51.11,
-      lng: 17.032,
-    },
-    {
-      id: "b",
-      name: "B",
-      description: "",
-      lat: 51.112,
-      lng: 17.045,
-    },
-  ];
   const END = { lat: 51.105, lng: 17.04 };
   const QUERY_TO_END: RouteQuery = { ...QUERY, end: END };
 
-  it("walks from the start through the planned stops to the end", async () => {
-    const { service, request, route } = setup();
-    const plan = jest
-      .spyOn(service, "plan")
-      .mockResolvedValue({ stops: STOPS, extras: [] });
-    const built = await service.build(QUERY_TO_END);
+  it("checks the start and end are supported, then plans", async () => {
+    const { service, request } = setup();
+    const planned: PlannedRoute = {
+      stops: [],
+      extras: [],
+      path: { distanceMeters: 0, durationSeconds: 0, coordinates: [] },
+    };
+    const plan = jest.spyOn(service, "plan").mockResolvedValue(planned);
+    expect(await service.build(QUERY_TO_END)).toBe(planned);
     expect(request).toHaveBeenCalledWith("location.ensure-inside", {
       points: [START, END],
     });
     expect(plan).toHaveBeenCalledWith(QUERY_TO_END);
-    expect(route).toHaveBeenCalledWith([
-      START,
-      { lat: 51.11, lng: 17.032 },
-      { lat: 51.112, lng: 17.045 },
-      END,
-    ]);
-    expect(built).toEqual({
-      stops: STOPS,
-      extras: [],
-      path: { distanceMeters: 1000, durationSeconds: 900, coordinates: [] },
-    });
   });
 
   it("refuses a start or end outside the supported cities before planning", async () => {
@@ -222,7 +202,6 @@ describe("PlanService.selectCandidates", () => {
     latitude: 51.112,
     longitude: 17.032,
     description: null,
-    mainImageUrl: null,
     significance: 0,
     tags: { gothic: 80 },
     ...over,
@@ -265,27 +244,5 @@ describe("PlanService.selectCandidates", () => {
     ]);
     const picked = await service.selectCandidates(SHORT);
     expect(picked.map((c) => c.place.id)).toEqual(["near"]);
-  });
-});
-
-describe("walkMinutes", () => {
-  it("is zero for the same point", () => {
-    expect(walkMinutes({ lat: 51.1, lng: 17 }, { lat: 51.1, lng: 17 })).toBe(0);
-  });
-
-  it("estimates a kilometre north at about 17 minutes with the detour factor", () => {
-    const minutes = walkMinutes(
-      { lat: 51.1, lng: 17 },
-      { lat: 51.109, lng: 17 },
-    );
-    expect(minutes).toBeGreaterThan(17);
-    expect(minutes).toBeLessThan(18);
-  });
-
-  it("is symmetric and faster at a higher speed", () => {
-    const a = { lat: 51.1, lng: 17 };
-    const b = { lat: 51.12, lng: 17.05 };
-    expect(walkMinutes(a, b)).toBeCloseTo(walkMinutes(b, a));
-    expect(walkMinutes(a, b, 6)).toBeLessThan(walkMinutes(a, b));
   });
 });

@@ -8,7 +8,6 @@ const RAW = {
   latitude: 51.11,
   longitude: 17.03,
   description: null,
-  main_image_url: "https://img/p1.jpg",
   significance: 80,
   tags: { gothic: 90 },
 };
@@ -40,7 +39,6 @@ describe("PlaceRepository", () => {
         latitude: 51.11,
         longitude: 17.03,
         description: null,
-        mainImageUrl: "https://img/p1.jpg",
         significance: 80,
         tags: { gothic: 90 },
       },

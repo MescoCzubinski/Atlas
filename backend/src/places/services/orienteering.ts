@@ -1,9 +1,9 @@
 import type { LatLng } from "./geo";
 import type { Plan, PlanStop, RouteCandidate } from "./types";
 
-const IMPROVEMENT_ROUNDS = 3;
-const MIN_ADDED_MINUTES = 1;
-const SAME_LENGTH_EPSILON_MINUTES = 0.01;
+const IMPROVEMENT_ROUNDS = 3; // insert-then-shorten rounds; stops early when a round adds no stop
+const MIN_ADDED_MINUTES = 1; // floor on the time an insertion adds, so a free detour does not divide by zero
+const SAME_LENGTH_EPSILON_MINUTES = 0.01; // a reordering must save more than this, so float noise cannot loop
 
 export type PlannerOptions = {
   start: LatLng;

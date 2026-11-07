@@ -4,7 +4,7 @@ import type {
   CityRepository,
   SupportedCity,
 } from "../repositories/city.repository";
-import { LocationService } from "./location.service";
+import { LocationService, MAX_RESULTS } from "./location.service";
 import type { GeocodedLocation, PhotonClient } from "./photon.client";
 
 const WROCLAW: SupportedCity = {
@@ -27,11 +27,11 @@ const location = (label: string, city = "Wrocław"): GeocodedLocation => ({
 });
 
 function setup(cities: SupportedCity[] = [WROCLAW]) {
-  const findAllByName = jest.fn().mockResolvedValue(cities);
+  const findAll = jest.fn().mockResolvedValue(cities);
   const search = jest.fn();
   const reverse = jest.fn();
   const service = new LocationService(
-    { findAllByName } as unknown as CityRepository,
+    { findAll } as unknown as CityRepository,
     { search, reverse } as unknown as PhotonClient,
   );
   return { service, search, reverse };
@@ -41,8 +41,12 @@ describe("LocationService.search", () => {
   it("searches inside the bbox of each supported city", async () => {
     const { service, search } = setup();
     search.mockResolvedValueOnce([location("Parkowa 3, Wrocław")]);
-    const result = await service.search("Parkowa 3", 4);
-    expect(search).toHaveBeenCalledWith("Parkowa 3 Wrocław", WROCLAW.bbox, 4);
+    const result = await service.search("Parkowa 3");
+    expect(search).toHaveBeenCalledWith(
+      "Parkowa 3 Wrocław",
+      WROCLAW.bbox,
+      MAX_RESULTS,
+    );
     expect(result.map((l) => l.label)).toEqual(["Parkowa 3, Wrocław"]);
   });
 
@@ -75,10 +79,12 @@ describe("LocationService.search", () => {
     expect(labels).toEqual(["Parkowa 1-3, Wrocław"]);
   });
 
-  it("respects the limit", async () => {
+  it("returns at most MAX_RESULTS locations", async () => {
     const { service, search } = setup();
-    search.mockResolvedValueOnce([location("a"), location("b"), location("c")]);
-    expect(await service.search("x", 2)).toHaveLength(2);
+    search.mockResolvedValueOnce(
+      Array.from({ length: MAX_RESULTS + 2 }, (_, i) => location(`Rynek ${i}`)),
+    );
+    expect(await service.search("Rynek")).toHaveLength(MAX_RESULTS);
   });
 
   it("returns nothing when no city is supported", async () => {

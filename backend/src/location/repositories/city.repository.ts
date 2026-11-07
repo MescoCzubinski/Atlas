@@ -12,7 +12,8 @@ export class CityRepository {
     @InjectRepository(City) private readonly cities: Repository<City>,
   ) {}
 
-  async findAllByName(): Promise<SupportedCity[]> {
+  /** Every supported city, by name: the order the frontend lists them in. */
+  async findAll(): Promise<SupportedCity[]> {
     const rows = await this.cities.find({
       select: { name: true, bbox: true },
       order: { name: "ASC" },

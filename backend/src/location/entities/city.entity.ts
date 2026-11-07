@@ -1,12 +1,18 @@
-import { Column, Entity, PrimaryColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
 import type { Bbox } from "../services/geo";
 
 @Entity("supported_cities")
 export class City {
-  @PrimaryColumn("uuid")
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column("text")
+  @Column("text", { unique: true })
   name: string;
 
   @Column("text")
@@ -21,6 +27,9 @@ export class City {
   @Column("jsonb")
   bbox: Bbox;
 
-  @Column("timestamptz", { name: "updated_at" })
+  @CreateDateColumn({ type: "timestamptz", name: "created_at" })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: "timestamptz", name: "updated_at" })
   updatedAt: Date;
 }

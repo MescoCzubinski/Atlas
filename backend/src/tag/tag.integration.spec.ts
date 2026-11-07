@@ -1,7 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import { createTestApp } from "../common/testing/test-app";
-import { ConfigService } from "@nestjs/config";
 import { EmbeddingModel } from "./services/embedding.model";
 import { TagModule } from "./tag.module";
 
@@ -29,12 +28,7 @@ describe("tag slice", () => {
   beforeAll(async () => {
     app = await createTestApp({
       imports: [TagModule],
-      env: { EMBEDDING_MODEL: "test-model" },
-      override: (b) =>
-        b.overrideProvider(EmbeddingModel).useFactory({
-          factory: (config: ConfigService) => new TestModel(config),
-          inject: [ConfigService],
-        }),
+      override: (b) => b.overrideProvider(EmbeddingModel).useClass(TestModel),
     });
   });
 

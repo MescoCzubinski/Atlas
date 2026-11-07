@@ -1,8 +1,5 @@
-import {
-  planOrienteering as planRoute,
-  type PlannerOptions,
-} from "./orienteering";
-import { walkMinutes } from "./plan.service";
+import { walkMinutes } from "./geo";
+import { planOrienteering, type PlannerOptions } from "./orienteering";
 import type { PlaceCandidate, RouteCandidate } from "./types";
 
 const START = { lat: 51.11, lng: 17.03 };
@@ -30,7 +27,7 @@ function options(over: Partial<PlannerOptions> = {}): PlannerOptions {
     end: START,
     budgetMinutes: 60,
     maxStops: 10,
-    walkMinutes: (a, b) => walkMinutes(a, b),
+    walkMinutes,
     ...over,
   };
 }
@@ -40,7 +37,7 @@ describe("route planner", () => {
     const near = Array.from({ length: 12 }, (_, i) =>
       candidate(`p${i}`, 51.11 + i * 0.002, 17.03 + (i % 3) * 0.002),
     );
-    const plan = planRoute(near, options({ budgetMinutes: 45 }));
+    const plan = planOrienteering(near, options({ budgetMinutes: 45 }));
     expect(plan.totalMinutes).toBeLessThanOrEqual(45);
     expect(plan.stops.length).toBeGreaterThan(0);
   });
@@ -48,7 +45,7 @@ describe("route planner", () => {
   it("prefers the more valuable place when only one fits", () => {
     const worth = candidate("worth", 51.115, 17.03, 5);
     const meh = candidate("meh", 51.115, 17.035, 1);
-    const plan = planRoute([meh, worth], options({ budgetMinutes: 25 }));
+    const plan = planOrienteering([meh, worth], options({ budgetMinutes: 25 }));
     expect(plan.stops.map((s) => s.candidate.place.id)).toEqual(["worth"]);
   });
 
@@ -56,7 +53,10 @@ describe("route planner", () => {
     const many = Array.from({ length: 8 }, (_, i) =>
       candidate(`p${i}`, 51.1105 + i * 0.0005, 17.0305),
     );
-    const plan = planRoute(many, options({ maxStops: 3, budgetMinutes: 240 }));
+    const plan = planOrienteering(
+      many,
+      options({ maxStops: 3, budgetMinutes: 240 }),
+    );
     expect(plan.stops).toHaveLength(3);
   });
 
@@ -64,7 +64,7 @@ describe("route planner", () => {
     const a = candidate("a", 51.112, 17.03);
     const b = candidate("b", 51.114, 17.03);
     const c = candidate("c", 51.116, 17.03);
-    const plan = planRoute(
+    const plan = planOrienteering(
       [c, a, b],
       options({ budgetMinutes: 120, end: { lat: 51.118, lng: 17.03 } }),
     );

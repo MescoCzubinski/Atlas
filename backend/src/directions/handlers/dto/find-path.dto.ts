@@ -9,7 +9,7 @@ import {
 import type { LatLng } from "../../services/geo";
 
 const POINT_PATTERN = /^-?\d{1,3}(\.\d{1,8})?,-?\d{1,3}(\.\d{1,8})?$/;
-export const MAX_PATH_POINTS = 30;
+const MAX_PATH_POINTS = 30;
 
 export class FindPathDto {
   @Transform(({ value }: { value: unknown }) =>

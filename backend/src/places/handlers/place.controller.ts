@@ -13,7 +13,7 @@ export class PlaceController {
 
   @Get()
   search(@Query() dto: SearchPlacesDto) {
-    return this.places.search(dto.query, dto.limit);
+    return this.places.search(dto.query);
   }
 
   @Post("plan")

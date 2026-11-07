@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
-import { EventBus } from "../common/bus/event-bus";
+import { Bus } from "../common/bus/bus";
 import { createTestApp } from "../common/testing/test-app";
 import {
   createTestDatabase,
@@ -10,6 +10,7 @@ import {
 import { GeocoderUnavailableException } from "./exceptions/geocoder-unavailable.exception";
 import { OutsideSupportedAreaException } from "./exceptions/outside-supported-area.exception";
 import { LocationModule } from "./location.module";
+import { MAX_RESULTS } from "./services/location.service";
 import { PhotonClient, type GeocodedLocation } from "./services/photon.client";
 
 const WROCLAW_BBOX: [number, number, number, number] = [
@@ -33,16 +34,16 @@ describeWithDatabase("location slice", () => {
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    await db.query(
-      `INSERT INTO supported_cities (name, region, latitude, longitude, bbox)
-       VALUES ('Wrocław', 'dolnośląskie', 51.1, 17.03, '[16.8, 51.04, 17.18, 51.21]'),
-              ('Kraków', 'małopolskie', 50.06, 19.94, '[19.8, 49.95, 20.1, 50.15]')`,
-    );
     app = await createTestApp({
       imports: [LocationModule],
       databaseUrl: db.backendUrl,
       override: (b) => b.overrideProvider(PhotonClient).useValue(geocoder),
     });
+    await db.query(
+      `INSERT INTO supported_cities (name, region, latitude, longitude, bbox)
+       VALUES ('Wrocław', 'dolnośląskie', 51.1, 17.03, '[16.8, 51.04, 17.18, 51.21]'),
+              ('Kraków', 'małopolskie', 50.06, 19.94, '[19.8, 49.95, 20.1, 50.15]')`,
+    );
   });
 
   afterAll(async () => {
@@ -62,7 +63,7 @@ describeWithDatabase("location slice", () => {
     expect(geocoder.search).toHaveBeenCalledWith(
       "Parkowa 3 Wrocław",
       WROCLAW_BBOX,
-      6,
+      MAX_RESULTS,
     );
   });
 
@@ -102,7 +103,7 @@ describeWithDatabase("location slice", () => {
 
   it("rejects location.ensure-inside for a point outside every city", async () => {
     await expect(
-      app.get(EventBus).request("location.ensure-inside", {
+      app.get(Bus).request("location.ensure-inside", {
         points: [
           { lat: 51.11, lng: 17.03 },
           { lat: 52.4, lng: 16.93 },

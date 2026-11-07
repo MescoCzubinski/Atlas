@@ -1,8 +1,10 @@
 import { Injectable, Logger, type OnApplicationShutdown } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { resolve } from "node:path";
 import { EmbeddingUnavailableException } from "../exceptions/embedding-unavailable.exception";
 
+// The tag-matching thresholds in tag.service.ts are tuned for this model.
+const MODEL_NAME = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
+const MODEL_DTYPE = "q8"; // 8-bit quantized weights
 export const MODEL_IDLE_TTL_MS = 10 * 60_000; // ms, ten minutes without a request
 const MODEL_CACHE_DIR = resolve(process.cwd(), ".model-cache");
 
@@ -14,14 +16,9 @@ export type LoadedModel = {
 @Injectable()
 export class EmbeddingModel implements OnApplicationShutdown {
   private readonly logger = new Logger(EmbeddingModel.name);
-  private readonly name: string;
   private model?: Promise<LoadedModel>;
   private inUse = 0;
   private idleTimer?: NodeJS.Timeout;
-
-  constructor(config: ConfigService) {
-    this.name = config.getOrThrow<string>("EMBEDDING_MODEL");
-  }
 
   /** Starts loading the model without waiting for it, so the first real request is fast. */
   warmup(): void {
@@ -63,9 +60,9 @@ export class EmbeddingModel implements OnApplicationShutdown {
   protected async loadModel(): Promise<LoadedModel> {
     const { pipeline, env } = await import("@huggingface/transformers");
     env.cacheDir = MODEL_CACHE_DIR;
-    this.logger.log(`Loading embedding model ${this.name} (q8)`);
-    const extractor = await pipeline("feature-extraction", this.name, {
-      dtype: "q8",
+    this.logger.log(`Loading embedding model ${MODEL_NAME} (${MODEL_DTYPE})`);
+    const extractor = await pipeline("feature-extraction", MODEL_NAME, {
+      dtype: MODEL_DTYPE,
     });
     return {
       embed: async (texts) => {

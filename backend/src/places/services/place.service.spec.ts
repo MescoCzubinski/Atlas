@@ -1,9 +1,6 @@
-import type {
-  PlaceRepository,
-  PlaceRow,
-} from "../repositories/place.repository";
-import { PlaceService } from "./place.service";
-import type { CandidateQuery } from "./types";
+import type { PlaceRepository } from "../repositories/place.repository";
+import { MAX_RESULTS, PlaceService } from "./place.service";
+import type { CandidateQuery, PlaceCandidate } from "./types";
 
 const QUERY: CandidateQuery = {
   south: 51,
@@ -15,18 +12,17 @@ const QUERY: CandidateQuery = {
   limit: 10,
 };
 
-const MUSEUM: PlaceRow = {
+const MUSEUM: PlaceCandidate = {
   id: "p1",
   name: "Muzeum Narodowe",
   latitude: 51.11,
   longitude: 17.047,
   description: "Sztuka",
-  mainImageUrl: "https://img/p1.jpg",
   significance: 0,
   tags: { museum: 90 },
 };
 
-function setup(found: PlaceRow[] = [MUSEUM]) {
+function setup(found: PlaceCandidate[] = [MUSEUM]) {
   const findByName = jest.fn().mockResolvedValue(found);
   const findInBoxWithTags = jest.fn().mockResolvedValue(found);
   const service = new PlaceService({
@@ -37,10 +33,10 @@ function setup(found: PlaceRow[] = [MUSEUM]) {
 }
 
 describe("PlaceService.search", () => {
-  it("looks up the trimmed text with the requested limit", async () => {
+  it("looks up the trimmed text", async () => {
     const { service, findByName } = setup([]);
-    await service.search("  muzeum ", 5);
-    expect(findByName).toHaveBeenCalledWith("muzeum", 5);
+    await service.search("  muzeum ");
+    expect(findByName).toHaveBeenCalledWith("muzeum", MAX_RESULTS);
   });
 
   it("describes each match as a stop", async () => {
@@ -52,7 +48,6 @@ describe("PlaceService.search", () => {
         description: "",
         lat: 51.11,
         lng: 17.047,
-        imageUrl: "https://img/p1.jpg",
       },
     ]);
   });
@@ -63,20 +58,9 @@ describe("PlaceService.search", () => {
 });
 
 describe("PlaceService.findCandidates", () => {
-  it("passes the query through and maps each row to a candidate", async () => {
+  it("passes the query to the repository", async () => {
     const { service, findInBoxWithTags } = setup();
-    expect(await service.findCandidates(QUERY)).toEqual([
-      {
-        id: "p1",
-        name: "Muzeum Narodowe",
-        latitude: 51.11,
-        longitude: 17.047,
-        description: "Sztuka",
-        mainImageUrl: "https://img/p1.jpg",
-        significance: 0,
-        tags: { museum: 90 },
-      },
-    ]);
+    expect(await service.findCandidates(QUERY)).toEqual([MUSEUM]);
     expect(findInBoxWithTags).toHaveBeenCalledWith(QUERY);
   });
 });

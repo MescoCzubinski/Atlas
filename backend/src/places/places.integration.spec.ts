@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
-import { EventBus } from "../common/bus/event-bus";
+import { Bus } from "../common/bus/bus";
 import { DomainException } from "../common/errors/domain.exception";
 import type { LatLng } from "./services/geo";
 import { createTestApp } from "../common/testing/test-app";
@@ -33,6 +33,10 @@ describeWithDatabase("places slice", () => {
 
   beforeAll(async () => {
     db = await createTestDatabase();
+    app = await createTestApp({
+      imports: [PlacesModule],
+      databaseUrl: db.backendUrl,
+    });
     await db.query(
       `INSERT INTO places (external_id, name, latitude, longitude, address, significance, facts)
        VALUES ('wroclaw:t:1', 'Muzeum Narodowe', 51.11, 17.047, '{}', 0, '{}'),
@@ -46,11 +50,7 @@ describeWithDatabase("places slice", () => {
        UNION ALL SELECT id, 'gothic', 99 FROM places WHERE external_id = 'wroclaw:t:3'`,
     );
 
-    app = await createTestApp({
-      imports: [PlacesModule],
-      databaseUrl: db.backendUrl,
-    });
-    const bus = app.get(EventBus);
+    const bus = app.get(Bus);
     bus.respond("location.ensure-inside", ({ points }) => {
       if (!points.every(inWroclaw)) throw new OutsideForTest();
     });

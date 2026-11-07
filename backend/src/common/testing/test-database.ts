@@ -1,18 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { Client } from "pg";
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 
-const SCHEMA_FILE = resolve(
-  process.cwd(),
-  "..",
-  "fetcher",
-  "app",
-  "schema.sql",
-);
-
+/** An empty database; the test app creates the tables of its modules (synchronize). */
 export type TestDatabase = {
   backendUrl: string;
   query: (sql: string, params?: unknown[]) => Promise<unknown[]>;
@@ -45,9 +36,6 @@ export async function createTestDatabase(): Promise<TestDatabase> {
 
   const ownerUrl = new URL(adminUrl);
   ownerUrl.pathname = `/${name}`;
-  await withClient(ownerUrl.toString(), async (owner) => {
-    await owner.query(readFileSync(SCHEMA_FILE, "utf-8"));
-  });
 
   const owner = new Client({ connectionString: ownerUrl.toString() });
   await owner.connect();

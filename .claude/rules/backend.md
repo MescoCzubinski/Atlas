@@ -5,7 +5,7 @@ paths:
 
 # Backend rules (NestJS, vertical slices)
 
-The backend is the **single source of truth and control point for reads**: all business logic and all validation live here. It is a **read-only consumer of the database**: it never writes, creates or alters anything. Data is written only by the fetcher, which also owns the schema (see `database.md`). The backend has no auth and is not published: it is reachable only inside the cluster network, through the ingress (`/api` only) and by the fetcher directly.
+The backend is the **single source of truth and control point for reads**: all business logic and all validation live here. It **owns the database schema** (its TypeORM entities, synchronized at boot) but **never writes data**: data is written only by the fetcher (see `database.md`). The backend has no auth and is not published: it is reachable only inside the cluster network, through the ingress (`/api` only) and by the fetcher directly.
 
 ## Structure: vertical slice
 
@@ -28,7 +28,7 @@ src/
       types.ts, <pure>.ts         shared slice types; pure logic as plain functions (no class, no DI)
     repositories/         ALL database reads
       <name>.repository.spec.ts   test next to the repository
-    entities/             TypeORM entities = read mappings of tables in fetcher/app/schema.sql
+    entities/             TypeORM entities = the schema of the slice's tables
     exceptions/           domain exceptions
 ```
 
@@ -41,12 +41,10 @@ src/
 ## Slices are isolated
 
 - **A slice never calls another slice.** No importing another slice's service, repository, entity or module, and no calling its methods. A slice may import only from itself, `common/` and npm packages.
-- Slices talk only through the **bus** (`common/bus/`), one injectable `EventBus` with two typed mechanisms. The contracts (`Events`, `Requests`) are declared once in `common/bus/` and are the only thing slices share:
-  - **Request/reply** when A needs data to build its answer. `await bus.request("location.ensure-inside", { points })`. Exactly one slice registers a responder with `bus.respond("location.ensure-inside", handler)`; a request with no responder or a failing responder rejects (domain exception).
-  - **Event** when A announces a fact and does not care who reacts. Fire-and-forget: `bus.emit("session.created", code)`.
-- Request/event names are `<aggregate>.<what>` (`directions.route`) or `<aggregate>.<past-tense-fact>` (`session.created`). Payloads and replies are plain data (ids, primitives, plain objects), never entities.
-- The emitting/requesting slice calls the bus from a **service**. The receiving slice registers responders and subscribes in `handlers/<name>.listener.ts`, which only delegates to one service (zero logic, like a controller).
-- Small shapes and DTOs (`LatLng`, `Bbox`, `PointDto`) are **duplicated in each slice** that needs them, never shared through `common/`. Only `StyleTag` (mirrors the schema enum) and the bus contracts live there. `common/` has no tests.
+- Slices talk only through the **bus** (`common/bus/`), one injectable `Bus` with typed request/reply. The contracts (`Requests` in `common/bus/contracts.ts`) are declared once and are the only thing slices share. A slice requests when it needs data to build its answer: `await bus.request("location.ensure-inside", { points })`. Exactly one slice registers a responder with `bus.respond("location.ensure-inside", handler)`; a request with no responder or a failing responder rejects (domain exception).
+- Request names are `<aggregate>.<what>` (`directions.route`, `location.ensure-inside`). Payloads and replies are plain data (ids, primitives, plain objects), never entities.
+- The requesting slice calls the bus from a **service**. The responding slice registers its responders in `handlers/<name>.listener.ts`, which only delegates to one service (zero logic, like a controller).
+- Small shapes and DTOs (`LatLng`, `Bbox`, `PointDto`) are **duplicated in each slice** that needs them, never shared through `common/`. Only `StyleTag` (it defines the `style_tag` enum) and the bus contracts live there. `common/` has no tests.
 - DTOs live in `handlers/dto/` and never leave the HTTP layer: services take plain typed inputs.
 
 ## Services: few and cohesive
@@ -66,12 +64,12 @@ src/
 - Return plain response shapes (not raw entities when they contain internal fields).
 - External calls (APIs, AI providers) go through one client per integration so they can be mocked and logged.
 
-## Database: read-only, schema owned by the fetcher
+## Database: schema in the entities, data from the fetcher
 
-- The backend only reads: no `save`, `insert`, `update`, `delete`. In the cluster its database user (from Kubernetes) has `SELECT` only.
-- **The schema is `fetcher/app/schema.sql`**, applied by the fetcher on every run. Entities only **map** existing tables; `synchronize` is off. Entity and SQL must agree: the integration tests run against that real schema.
-- **No migrations.** MVP. A schema change means editing `fetcher/app/schema.sql` and the entity together.
-- Each slice registers its entities with `TypeOrmModule.forFeature([...])`. `autoLoadEntities` is on.
+- The backend never writes data: no `save`, `insert`, `update`, `delete`.
+- **The entities are the schema.** `synchronize` is on: at boot TypeORM creates what is missing and brings tables, indexes, constraints and the `style_tag` enum (built from `STYLE_TAGS`) in line with the entities. Every column the fetcher writes is in an entity, with its default; indexes and constraints that already exist in the database keep their names (`@Index("places_significance_idx")`). In the cluster the backend's database user therefore needs DDL on the schema.
+- **No migrations.** MVP. A schema change means editing the entity; the next boot applies it. Changing a column's type (or array-ness) makes TypeORM drop and re-add it, so its data is gone until the fetcher's next run.
+- Each slice registers its entities with `TypeOrmModule.forFeature([...])`. `autoLoadEntities` is on. Integration tests run against an empty database that the test app synchronizes from the slice's entities.
 - The backend has no seed. Demo and real data come only from the fetcher.
 - Details of the data model (document style on Postgres) are in `database.md`.
 

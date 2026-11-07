@@ -1,12 +1,9 @@
-import type { ConfigService } from "@nestjs/config";
 import { EmbeddingUnavailableException } from "../exceptions/embedding-unavailable.exception";
 import {
   EmbeddingModel,
   MODEL_IDLE_TTL_MS,
   type LoadedModel,
 } from "./embedding.model";
-
-const CONFIG = { getOrThrow: () => "test-model" } as unknown as ConfigService;
 
 function setup() {
   const loaded: LoadedModel = {
@@ -19,7 +16,7 @@ function setup() {
       return load();
     }
   }
-  return { model: new TestModel(CONFIG), load, loaded };
+  return { model: new TestModel(), load, loaded };
 }
 
 const settle = async () => {

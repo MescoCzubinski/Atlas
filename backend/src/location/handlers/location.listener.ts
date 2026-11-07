@@ -1,11 +1,11 @@
 import { Injectable, type OnModuleInit } from "@nestjs/common";
-import { EventBus } from "../../common/bus/event-bus";
+import { Bus } from "../../common/bus/bus";
 import { LocationService } from "../services/location.service";
 
 @Injectable()
 export class LocationListener implements OnModuleInit {
   constructor(
-    private readonly bus: EventBus,
+    private readonly bus: Bus,
     private readonly locations: LocationService,
   ) {}
 

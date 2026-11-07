@@ -4,7 +4,7 @@ import type { Bbox } from "./geo";
 
 const PHOTON_URL = "https://photon.komoot.io/api/";
 const PHOTON_REVERSE_URL = "https://photon.komoot.io/reverse";
-const REQUEST_TIMEOUT = 5000;
+const REQUEST_TIMEOUT_MS = 5_000;
 
 export type GeocodedLocation = {
   label: string;
@@ -87,8 +87,8 @@ export class PhotonClient {
   private async fetchJson(url: URL): Promise<{ features?: PhotonFeature[] }> {
     try {
       const res = await fetch(url, {
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT),
-        headers: { "User-Agent": "Atlas-BestHacks2026" },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        headers: { "User-Agent": "Atlas" },
       });
       if (!res.ok) throw new Error(`Photon responded ${res.status}`);
       return (await res.json()) as { features?: PhotonFeature[] };

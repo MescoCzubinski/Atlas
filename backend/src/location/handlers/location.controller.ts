@@ -9,7 +9,7 @@ export class LocationController {
 
   @Get()
   find(@Query() dto: SearchLocationsDto) {
-    return this.locations.search(dto.query, dto.limit);
+    return this.locations.search(dto.query);
   }
 
   @Get("reverse")

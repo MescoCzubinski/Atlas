@@ -1,7 +1,7 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import type { RoutedPath } from "../common/bus/contracts";
-import { EventBus } from "../common/bus/event-bus";
+import { Bus } from "../common/bus/bus";
 import { DomainException } from "../common/errors/domain.exception";
 import type { LatLng } from "./services/geo";
 import { createTestApp } from "../common/testing/test-app";
@@ -32,7 +32,7 @@ describe("directions slice", () => {
       override: (b) =>
         b.overrideProvider(GraphHopperClient).useValue({ route }),
     });
-    app.get(EventBus).respond("location.ensure-inside", ({ points }) => {
+    app.get(Bus).respond("location.ensure-inside", ({ points }) => {
       if (!points.every(inWroclaw)) throw new OutsideForTest();
     });
   });
@@ -56,7 +56,7 @@ describe("directions slice", () => {
   });
 
   it("answers directions.route on the bus", async () => {
-    const path = await app.get(EventBus).request("directions.route", {
+    const path = await app.get(Bus).request("directions.route", {
       points: [
         { lat: 51.1, lng: 17 },
         { lat: 51.2, lng: 17.1 },
