@@ -6,7 +6,7 @@ import psycopg
 
 from .cache import Cache
 from .config import Settings
-from .db import save_places
+from .db import ensure_schema, save_city, save_places
 from .http import Http
 from .pipeline.build import SourceData, build_documents
 from .pipeline.tagging import Embedder
@@ -39,6 +39,8 @@ def gather(settings: Settings, http: Http, cache: Cache) -> SourceData:
 
 def run(settings: Settings, http: Http, embedder: Embedder) -> dict[str, Any]:
     embedder.wait_until_ready()
+    with psycopg.connect(settings.db_url, autocommit=False) as conn:
+        ensure_schema(conn)
     cache = Cache(settings.cache_dir, settings.region.id)
     data = gather(settings, http, cache)
     docs, report = build_documents(settings.region, data, embedder)
@@ -50,5 +52,6 @@ def run(settings: Settings, http: Http, embedder: Embedder) -> dict[str, Any]:
         settings.export_path.with_suffix(".report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
         log.info("exported %d places to %s", len(docs), settings.export_path)
     with psycopg.connect(settings.db_url, autocommit=False) as conn:
+        save_city(conn, settings.region)
         report["db"] = save_places(conn, settings.region.id, docs)
     return report

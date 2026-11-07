@@ -1,0 +1,77 @@
+import { walkMinutes } from "./geo";
+import { planOrienteering, type PlannerOptions } from "./orienteering";
+import type { PlaceCandidate, RouteCandidate } from "./types";
+
+const START = { lat: 51.11, lng: 17.03 };
+
+function candidate(
+  id: string,
+  lat: number,
+  lng: number,
+  value = 1,
+): RouteCandidate {
+  const place = {
+    id,
+    name: id,
+    latitude: lat,
+    longitude: lng,
+    tags: {},
+    significance: 50,
+  } as unknown as PlaceCandidate;
+  return { place, point: { lat, lng }, value };
+}
+
+function options(over: Partial<PlannerOptions> = {}): PlannerOptions {
+  return {
+    start: START,
+    end: START,
+    budgetMinutes: 60,
+    maxStops: 10,
+    walkMinutes,
+    ...over,
+  };
+}
+
+describe("route planner", () => {
+  it("never exceeds the time budget", () => {
+    const near = Array.from({ length: 12 }, (_, i) =>
+      candidate(`p${i}`, 51.11 + i * 0.002, 17.03 + (i % 3) * 0.002),
+    );
+    const plan = planOrienteering(near, options({ budgetMinutes: 45 }));
+    expect(plan.totalMinutes).toBeLessThanOrEqual(45);
+    expect(plan.stops.length).toBeGreaterThan(0);
+  });
+
+  it("prefers the more valuable place when only one fits", () => {
+    const worth = candidate("worth", 51.115, 17.03, 5);
+    const meh = candidate("meh", 51.115, 17.035, 1);
+    const plan = planOrienteering([meh, worth], options({ budgetMinutes: 25 }));
+    expect(plan.stops.map((s) => s.candidate.place.id)).toEqual(["worth"]);
+  });
+
+  it("respects maxStops and returns to the end point", () => {
+    const many = Array.from({ length: 8 }, (_, i) =>
+      candidate(`p${i}`, 51.1105 + i * 0.0005, 17.0305),
+    );
+    const plan = planOrienteering(
+      many,
+      options({ maxStops: 3, budgetMinutes: 240 }),
+    );
+    expect(plan.stops).toHaveLength(3);
+  });
+
+  it("orders stops to avoid backtracking", () => {
+    const a = candidate("a", 51.112, 17.03);
+    const b = candidate("b", 51.114, 17.03);
+    const c = candidate("c", 51.116, 17.03);
+    const plan = planOrienteering(
+      [c, a, b],
+      options({ budgetMinutes: 120, end: { lat: 51.118, lng: 17.03 } }),
+    );
+    expect(plan.stops.map((s) => s.candidate.place.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+});

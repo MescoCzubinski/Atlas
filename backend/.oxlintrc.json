@@ -1,0 +1,157 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "overrides": [
+    {
+      "files": ["src/directions/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/health",
+                  "**/health/**",
+                  "**/location",
+                  "**/location/**",
+                  "**/places",
+                  "**/places/**",
+                  "**/tag",
+                  "**/tag/**"
+                ],
+                "message": "A slice never imports another slice; use the bus (common/bus)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/health/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/directions",
+                  "**/directions/**",
+                  "**/location",
+                  "**/location/**",
+                  "**/places",
+                  "**/places/**",
+                  "**/tag",
+                  "**/tag/**"
+                ],
+                "message": "A slice never imports another slice; use the bus (common/bus)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/location/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/directions",
+                  "**/directions/**",
+                  "**/health",
+                  "**/health/**",
+                  "**/places",
+                  "**/places/**",
+                  "**/tag",
+                  "**/tag/**"
+                ],
+                "message": "A slice never imports another slice; use the bus (common/bus)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/places/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/directions",
+                  "**/directions/**",
+                  "**/health",
+                  "**/health/**",
+                  "**/location",
+                  "**/location/**",
+                  "**/tag",
+                  "**/tag/**"
+                ],
+                "message": "A slice never imports another slice; use the bus (common/bus)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/tag/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/directions",
+                  "**/directions/**",
+                  "**/health",
+                  "**/health/**",
+                  "**/location",
+                  "**/location/**",
+                  "**/places",
+                  "**/places/**"
+                ],
+                "message": "A slice never imports another slice; use the bus (common/bus)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/common/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/directions",
+                  "**/directions/**",
+                  "**/health",
+                  "**/health/**",
+                  "**/location",
+                  "**/location/**",
+                  "**/places",
+                  "**/places/**",
+                  "**/tag",
+                  "**/tag/**"
+                ],
+                "message": "common/ never imports a slice."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
